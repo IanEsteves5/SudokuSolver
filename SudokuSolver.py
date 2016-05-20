@@ -100,11 +100,17 @@ class GameWindow(tkinter.Tk):
    def __init__(self, parent=None, board=None):
       tkinter.Tk.__init__(self, parent)
       self.parent = parent
-      self.board = board
       if board==None:
-         self.board = Board()
+         self.init(Board())
+      else:
+         self.init(board)
+      
+   def init(self, board):
+      self.board = board
       self.selectedCell = None
       self.selectedButton = None
+      self.boardGroup = tkinter.Frame(self, background="gray")
+      self.buttonGroups = [[tkinter.Frame(self.boardGroup) for x in range(3)] for y in range(3)]
       self.buttons = [[tkinter.Button(self, width=5, height=3, borderwidth=2) for x in range(9)] for y in range(9)]
       self.textField = tkinter.Label(self)
       
@@ -114,12 +120,15 @@ class GameWindow(tkinter.Tk):
       self.bind("<Escape>", lambda event: self.destroy())
       
       self.grid()
+      self.boardGroup.grid(row=0, column=0)
+      for bg, i, j in ([self.buttonGroups[x][y], x, y] for x in range(3) for y in range(3)):
+         bg.grid(column=i, row=j, padx=1, pady=1)
       for b, c, i, j in ([self.buttons[x][y], self.board.cells[x][y], x, y] for x in range(9) for y in range(9)):
-         b.grid(column=i, row=j)
+         b.grid(in_=self.buttonGroups[i//3][j//3],column=i%3, row=j%3)
          b.bind("<Button-1>", lambda event, i=i, j=j: self.onCellClick(i, j))
          b.bind("<Button-3>", lambda event, i=i, j=j: self.onCellRightClick(i, j))
          c.changeCallback = lambda b=b, c=c: b.config(text=c.toString())
-      self.textField.grid(row=9,column=0,columnspan=9)
+      self.textField.grid(row=1, column=0)
       self.resizable(False, False)
    def onCellClick(self, row, column):
       self.selectedCell = self.board.cells[row][column]
