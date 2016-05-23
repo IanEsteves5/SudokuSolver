@@ -15,13 +15,18 @@ class Board:
    def reset(self):
       for c in (y for x in self.cells for y in x):
          c.reset()
-   def check(self):
+   def hasErrors(self):
       for i in self.groups:
-         if not i.check():
+         if i.hasErrors():
+            return True
+      return False
+   def isComplete(self):
+      for c in self:
+         if not c.isFound():
             return False
       return True
    def solve(self):
-      if not self.check():
+      if self.hasErrors():
          return False
       try:
          for c in (y for x in self.cells for y in x):
@@ -29,7 +34,7 @@ class Board:
       except BaseException as e:
          print(str(e))
          return False
-      if not self.check():
+      if self.hasErrors():
          return False
       return True
 
@@ -98,25 +103,25 @@ class CellGroup:
    def delValue(self, v):
       for i in self.cells:
          i.delValue(v)
-   def check(self):
-      for i, j in ([self.cells[x], self.cells[y]] for x in range(8) for y in range(x+1,9)):
+   def hasErrors(self):
+      for i, j in itertools.combinations(self.cells, 2):
          if i.isFound() and j.isFound() and i.values[0]==j.values[0]:
-            return False
-      return True
+            return True
+      return False
 
 class GameWindow(tkinter.Tk):
    def __init__(self, parent=None, board=None):
       tkinter.Tk.__init__(self, parent)
       self.title("Sudoku Solver")
       self.parent = parent
-      self.boardGroup = tkinter.Frame(self, background="gray")
+      self.boardGroup = tkinter.Frame(self, background="black")
       self.buttonGroups = [[tkinter.Frame(self.boardGroup) for x in range(3)] for y in range(3)]
-      self.buttons = [[tkinter.Button(self, width=5, height=3, borderwidth=2) for x in range(9)] for y in range(9)]
+      self.buttons = [[tkinter.Button(self, width=5, height=3, borderwidth=1) for x in range(9)] for y in range(9)]
       self.textField = tkinter.Label(self)
       self.grid()
       self.boardGroup.grid(row=0, column=0)
       for bg, i, j in ([self.buttonGroups[x][y], x, y] for x in range(3) for y in range(3)):
-         bg.grid(column=i, row=j, padx=1, pady=1)
+         bg.grid(column=i, row=j, padx=i%2, pady=j%2)
       for b, i, j in ([self.buttons[x][y], x, y] for x in range(9) for y in range(9)):
          b.grid(in_=self.buttonGroups[i//3][j//3],column=i%3, row=j%3)
          b.bind("<Button-1>", lambda event, i=i, j=j: self.onCellClick(i, j))
@@ -124,7 +129,7 @@ class GameWindow(tkinter.Tk):
       self.textField.grid(row=1, column=0)
       self.resizable(False, False)
       self.bind("<Key>", lambda event: self.onKeyPress(event.char))
-      self.bind("<Return>", lambda event: self.onReturnPress())
+      self.bind("<Return>", lambda event: self.solve())
       self.bind("<space>", lambda event: self.animationOff())
       self.bind("<Escape>", lambda event: self.destroy())
       if board==None:
@@ -143,24 +148,17 @@ class GameWindow(tkinter.Tk):
    def onCellClick(self, row, column):
       self.selectedCell = self.board.cells[row][column]
       self.selectedButton = self.buttons[row][column]
-      self.setText(self.selectedCell.values)
+      self.setText(", ".join((str(x) for x in self.selectedCell.values)))
    def onCellRightClick(self, row, column):
       self.selectedCell = self.board.cells[row][column]
       self.selectedButton = self.buttons[row][column]
       self.selectedCell.reset()
-      self.setText(self.selectedCell.values)
+      self.setText(", ".join((str(x) for x in self.selectedCell.values)))
    def onKeyPress(self, key):
       if not key.isdigit() or key=="0" or self.selectedCell==None:
          return
       self.selectedCell.forceSetValue(int(key))
-      self.setText(self.selectedCell.values)
-   def onReturnPress(self):
-      self.setText("Working...")
-      self.animationOn()
-      if self.board.solve():
-         self.setText("Done!")
-      else:
-         self.setText=("Error")
+      self.setText(", ".join((str(x) for x in self.selectedCell.values)))
    def onFound(self):
       self.update()
       self.after(150)
@@ -172,6 +170,13 @@ class GameWindow(tkinter.Tk):
          c.foundCallback = lambda: None
    def setText(self, text):
       self.textField.config(text=str(text))
+   def solve(self):
+      self.setText("Working...")
+      self.animationOn()
+      if self.board.solve():
+         self.setText("Done!")
+      else:
+         self.setText("Error")
 
 if __name__ == "__main__":
    GameWindow().mainloop()
